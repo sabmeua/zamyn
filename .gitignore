@@ -1,0 +1,17 @@
+node_modules/
+.env
+.env.local
+dist/
+build/
+.next/
+.turbo/
+*.log
+.DS_Store
+uploads/
+.pnpm-debug.log
+coverage/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
