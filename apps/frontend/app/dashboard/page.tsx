@@ -6,9 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { authApi } from '@/lib/api-client';
 
+interface UserProfile {
+  userId: string;
+  username: string;
+  role: string;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -22,9 +28,10 @@ export default function DashboardPage() {
 
       try {
         const profile = await authApi.getProfile();
-        setUser(profile);
-      } catch (err: any) {
-        setError(err.message || 'Failed to fetch profile');
+        setUser(profile as UserProfile);
+      } catch (err) {
+        const error = err as Error;
+        setError(error.message || 'Failed to fetch profile');
         localStorage.removeItem('token');
         router.push('/login');
       } finally {

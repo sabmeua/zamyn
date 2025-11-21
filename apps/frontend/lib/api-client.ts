@@ -37,10 +37,14 @@ export const authApi = {
   }) => apiRequest('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
 
   login: (data: { username: string; password: string }) =>
-    apiRequest<{ access_token: string; user: any }>('/auth/login', {
+    apiRequest<{
+      access_token: string;
+      user: { id: string; username: string; email: string; displayName: string; role: string };
+    }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
-  getProfile: () => apiRequest('/auth/profile'),
+  getProfile: () =>
+    apiRequest<{ userId: string; username: string; role: string }>('/auth/profile'),
 };

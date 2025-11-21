@@ -15,7 +15,6 @@ import {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 
 const initialNodes: Node[] = [
   {
