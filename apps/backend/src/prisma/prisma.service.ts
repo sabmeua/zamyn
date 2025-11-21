@@ -5,7 +5,10 @@ import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   constructor(private readonly config: ConfigService) {
     const databaseUrl = config.get<string>('DATABASE_URL');
     if (!databaseUrl) {
@@ -13,6 +16,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     }
 
     const pool = new Pool({ connectionString: databaseUrl });
+
     const adapter = new PrismaPg(pool);
 
     super({ adapter });

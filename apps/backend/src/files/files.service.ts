@@ -8,8 +8,9 @@ export class FilesService {
   private uploadDir: string;
 
   constructor(private configService: ConfigService) {
-    this.uploadDir = this.configService.get<string>('UPLOAD_DIR') || './uploads';
-    this.ensureUploadDir();
+    this.uploadDir =
+      this.configService.get<string>('UPLOAD_DIR') || './uploads';
+    void this.ensureUploadDir();
   }
 
   private async ensureUploadDir() {
@@ -20,7 +21,9 @@ export class FilesService {
     }
   }
 
-  async saveFile(file: Express.Multer.File): Promise<{ filename: string; path: string }> {
+  async saveFile(
+    file: Express.Multer.File,
+  ): Promise<{ filename: string; path: string }> {
     const filename = `${Date.now()}-${file.originalname}`;
     const filepath = path.join(this.uploadDir, filename);
     await fs.writeFile(filepath, file.buffer);

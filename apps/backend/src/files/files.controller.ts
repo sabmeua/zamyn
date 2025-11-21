@@ -19,13 +19,26 @@ import { ConfigService } from '@nestjs/config';
 @UseGuards(JwtAuthGuard)
 export class FilesController {
   private maxFileSize: number;
-  private allowedTypes = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt'];
+  private allowedTypes = [
+    'jpg',
+    'jpeg',
+    'png',
+    'gif',
+    'pdf',
+    'doc',
+    'docx',
+    'xls',
+    'xlsx',
+    'txt',
+  ];
 
   constructor(
     private filesService: FilesService,
     private configService: ConfigService,
   ) {
-    this.maxFileSize = parseInt(this.configService.get<string>('MAX_FILE_SIZE') || '10485760');
+    this.maxFileSize = parseInt(
+      this.configService.get<string>('MAX_FILE_SIZE') || '10485760',
+    );
   }
 
   @Post('upload')
@@ -36,7 +49,9 @@ export class FilesController {
     }
 
     if (file.size > this.maxFileSize) {
-      throw new BadRequestException(`File size exceeds ${this.maxFileSize} bytes`);
+      throw new BadRequestException(
+        `File size exceeds ${this.maxFileSize} bytes`,
+      );
     }
 
     const ext = file.originalname.split('.').pop()?.toLowerCase();
