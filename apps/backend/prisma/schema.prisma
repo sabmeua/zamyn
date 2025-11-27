@@ -9,18 +9,41 @@ datasource db {
   provider = "postgresql"
 }
 
+// ========================================
+// ユーザー関連
+// ========================================
+
 model User {
-  id           String    @id @default(uuid())
-  username     String    @unique
-  email        String    @unique
-  passwordHash String?   @map("password_hash")
-  displayName  String    @map("display_name")
-  avatarUrl    String?   @map("avatar_url")
-  isActive     Boolean   @default(true) @map("is_active")
-  roleId       String    @map("role_id")
-  role         Role      @relation(fields: [roleId], references: [id])
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  id           String  @id @default(uuid())
+  username     String  @unique
+  email        String  @unique
+  passwordHash String? @map("password_hash")
+  displayName  String  @map("display_name")
+  avatarUrl    String? @map("avatar_url")
+  isActive     Boolean @default(true) @map("is_active")
+
+  // SSO関連
+  ssoProvider String? @map("sso_provider")
+  ssoId       String? @unique @map("sso_id")
+
+  // 関連
+  roleId       String      @map("role_id")
+  role         Role        @relation(fields: [roleId], references: [id])
+  departmentId String?     @map("department_id")
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  // リレーション
+  createdTickets   Ticket[]           @relation("TicketCreator")
+  assignedTickets  Ticket[]           @relation("TicketAssignee")
+  comments         TicketComment[]
+  attachments      TicketAttachment[]
+  histories        TicketHistory[]
+  createdWorkflows Workflow[]
+  savedFilters     SavedFilter[]
+  notifications    Notification[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("users")
 }
@@ -31,7 +54,338 @@ model Role {
   description String
   permissions Json
   createdAt   DateTime @default(now()) @map("created_at")
-  users       User[]
+
+  users User[]
 
   @@map("roles")
+}
+
+model Department {
+  id          String       @id @default(uuid())
+  name        String
+  parentId    String?      @map("parent_id")
+  parent      Department?  @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children    Department[] @relation("DepartmentHierarchy")
+  description String?
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  users User[]
+
+  @@map("departments")
+}
+
+// ========================================
+// ワークフロー関連
+// ========================================
+
+model Workflow {
+  id               String  @id @default(uuid())
+  name             String
+  description      String?
+  isActive         Boolean @default(true) @map("is_active")
+  customProperties Json    @map("custom_properties")
+  version          Int     @default(1)
+
+  createdById String @map("created_by_id")
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  states       WorkflowState[]
+  actions      WorkflowAction[]
+  tickets      Ticket[]
+  integrations Integration[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("workflows")
+}
+
+model WorkflowState {
+  id         String   @id @default(uuid())
+  workflowId String   @map("workflow_id")
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  name               String
+  displayName        String  @map("display_name")
+  color              String // HEX color code
+  icon               String?
+  position           Json // {x, y} for visual editor
+  requiredProperties Json    @map("required_properties")
+  assignConfig       Json    @map("assign_config")
+  isInitial          Boolean @default(false) @map("is_initial")
+  isFinal            Boolean @default(false) @map("is_final")
+
+  actionsFrom WorkflowAction[] @relation("ActionFromState")
+  actionsTo   WorkflowAction[] @relation("ActionToState")
+  tickets     Ticket[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("workflow_states")
+}
+
+model WorkflowAction {
+  id         String   @id @default(uuid())
+  workflowId String   @map("workflow_id")
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  name        String
+  triggerType TriggerType @map("trigger_type")
+
+  fromStateId String        @map("from_state_id")
+  fromState   WorkflowState @relation("ActionFromState", fields: [fromStateId], references: [id], onDelete: Cascade)
+
+  toStateId String        @map("to_state_id")
+  toState   WorkflowState @relation("ActionToState", fields: [toStateId], references: [id], onDelete: Cascade)
+
+  condition   Json? // 条件分岐の定義
+  sideEffects Json  @map("side_effects") // 外部通知等の副作用
+  order       Int   @default(0)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("workflow_actions")
+}
+
+enum TriggerType {
+  MANUAL
+  AUTO
+  EXTERNAL
+  SCHEDULED
+}
+
+// ========================================
+// チケット関連
+// ========================================
+
+model Ticket {
+  id           String @id @default(uuid())
+  ticketNumber String @unique @map("ticket_number")
+
+  workflowId String   @map("workflow_id")
+  workflow   Workflow @relation(fields: [workflowId], references: [id])
+
+  currentStateId String        @map("current_state_id")
+  currentState   WorkflowState @relation(fields: [currentStateId], references: [id])
+
+  title       String
+  description String?   @db.Text
+  priority    Priority?
+
+  assigneeId String? @map("assignee_id")
+  assignee   User?   @relation("TicketAssignee", fields: [assigneeId], references: [id])
+
+  creatorId String @map("creator_id")
+  creator   User   @relation("TicketCreator", fields: [creatorId], references: [id])
+
+  requesterEmail String? @map("requester_email")
+  requesterName  String? @map("requester_name")
+
+  customData Json @map("custom_data")
+  tags       Json @default("[]")
+
+  dueDate  DateTime? @map("due_date")
+  closedAt DateTime? @map("closed_at")
+
+  comments         TicketComment[]
+  attachments      TicketAttachment[]
+  histories        TicketHistory[]
+  externalMessages ExternalMessage[]
+  notifications    Notification[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("tickets")
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model TicketComment {
+  id       String @id @default(uuid())
+  ticketId String @map("ticket_id")
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id])
+
+  authorName  String? @map("author_name")
+  authorEmail String? @map("author_email")
+
+  content    String  @db.Text
+  isInternal Boolean @default(false) @map("is_internal")
+
+  parentCommentId String?         @map("parent_comment_id")
+  parentComment   TicketComment?  @relation("CommentThread", fields: [parentCommentId], references: [id])
+  replies         TicketComment[] @relation("CommentThread")
+
+  attachments TicketAttachment[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("ticket_comments")
+}
+
+model TicketAttachment {
+  id       String  @id @default(uuid())
+  ticketId String? @map("ticket_id")
+  ticket   Ticket? @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  commentId String?        @map("comment_id")
+  comment   TicketComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  filename String
+  filePath String @map("file_path")
+  fileSize Int    @map("file_size")
+  mimeType String @map("mime_type")
+
+  uploadedById String @map("uploaded_by_id")
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("ticket_attachments")
+}
+
+model TicketHistory {
+  id       String @id @default(uuid())
+  ticketId String @map("ticket_id")
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id])
+
+  actionType  ActionType @map("action_type")
+  fieldName   String?    @map("field_name")
+  oldValue    Json?      @map("old_value")
+  newValue    Json?      @map("new_value")
+  description String     @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("ticket_histories")
+}
+
+enum ActionType {
+  CREATED
+  UPDATED
+  STATE_CHANGED
+  ASSIGNED
+  COMMENTED
+  ATTACHMENT_ADDED
+  CLOSED
+  REOPENED
+}
+
+// ========================================
+// 外部連携関連
+// ========================================
+
+model Integration {
+  id         String          @id @default(uuid())
+  name       String
+  type       IntegrationType
+  workflowId String          @map("workflow_id")
+  workflow   Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  config   String  @db.Text // 暗号化済みJSON
+  isActive Boolean @default(true) @map("is_active")
+
+  externalMessages ExternalMessage[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("integrations")
+}
+
+enum IntegrationType {
+  EMAIL
+  LINE
+  SLACK
+  GOOGLE_FORM
+  WEBHOOK
+}
+
+model ExternalMessage {
+  id            String      @id @default(uuid())
+  integrationId String      @map("integration_id")
+  integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  ticketId String? @map("ticket_id")
+  ticket   Ticket? @relation(fields: [ticketId], references: [id])
+
+  externalId String    @map("external_id")
+  direction  Direction
+  sender     String
+  recipient  String?
+  subject    String?
+  content    String    @db.Text
+  rawData    Json      @map("raw_data")
+
+  processedAt DateTime? @map("processed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("external_messages")
+}
+
+enum Direction {
+  INBOUND
+  OUTBOUND
+}
+
+// ========================================
+// その他
+// ========================================
+
+model SavedFilter {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name         String
+  description  String?
+  filterConfig Json    @map("filter_config")
+  isPublic     Boolean @default(false) @map("is_public")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("saved_filters")
+}
+
+model Notification {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  ticketId String? @map("ticket_id")
+  ticket   Ticket? @relation(fields: [ticketId], references: [id])
+
+  type    NotificationType
+  title   String
+  message String           @db.Text
+  isRead  Boolean          @default(false) @map("is_read")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  readAt    DateTime? @map("read_at")
+
+  @@map("notifications")
+}
+
+enum NotificationType {
+  MENTION
+  ASSIGNMENT
+  STATE_CHANGE
+  COMMENT
+  DUE_DATE
 }
