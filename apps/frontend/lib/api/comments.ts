@@ -1,5 +1,13 @@
 import { apiClient } from '../api-client';
 
+export interface Attachment {
+  id: string;
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+}
+
 export interface Comment {
   id: string;
   content: string;
@@ -12,7 +20,7 @@ export interface Comment {
   createdAt: string;
   updatedAt: string;
   replies?: Comment[];
-  attachments?: any[];
+  attachments?: Attachment[];
 }
 
 export const commentsApi = {

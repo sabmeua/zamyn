@@ -42,7 +42,7 @@ export const workflowsApi = {
   async create(data: {
     name: string;
     description: string;
-    customProperties?: any;
+    customProperties?: Record<string, unknown>;
   }): Promise<Workflow> {
     const response = await apiClient.post('/workflows', data);
     return response.data;
