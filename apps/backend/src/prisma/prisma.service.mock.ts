@@ -43,5 +43,8 @@ export const mockPrismaService = {
     findUnique: jest.fn(),
     delete: jest.fn(),
   },
-  $transaction: jest.fn((callback) => callback(mockPrismaService)),
+  $transaction: jest.fn(
+    (callback: (prisma: typeof mockPrismaService) => Promise<unknown>) =>
+      callback(mockPrismaService),
+  ),
 };
