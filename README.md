@@ -54,23 +54,37 @@ git clone https://github.com/sabmeua/zamyn.git
 cd zamyn
 ```
 
+**Note**: If you want to use the latest Phase 0 implementation, checkout the PR branch:
+```bash
+git fetch origin
+git checkout devin/1763722574-phase0-setup
+```
+
 ### 2. Install dependencies
 
 ```bash
 pnpm install
 ```
 
+This will automatically:
+- Install all workspace dependencies
+- Generate the Prisma client (via postinstall script)
+
 ### 3. Setup environment variables
 
-Backend:
+**Backend** (required):
 ```bash
 cp apps/backend/.env.example apps/backend/.env
 ```
 
-Frontend:
+Edit `apps/backend/.env` if you need to change database credentials or other settings.
+
+**Frontend** (required):
 ```bash
 cp apps/frontend/.env.example apps/frontend/.env.local
 ```
+
+The default API URL is `http://localhost:3001`. Change if needed.
 
 ### 4. Start Docker services
 
@@ -78,30 +92,31 @@ cp apps/frontend/.env.example apps/frontend/.env.local
 docker-compose up -d postgres redis
 ```
 
-Wait for PostgreSQL to be ready (check with `docker ps`).
+Wait for PostgreSQL to be ready (check with `docker ps` or `docker-compose logs postgres`).
 
 ### 5. Run database migrations
 
 ```bash
 cd apps/backend
-pnpm dlx prisma migrate dev
+pnpm dlx prisma migrate dev --name init
 ```
+
+This creates the initial database schema with User and Role tables.
 
 ### 6. Start development servers
 
-In separate terminals:
+**Option A**: Run both servers together (recommended):
+```bash
+pnpm dev
+```
 
+**Option B**: Run in separate terminals:
 ```bash
 # Terminal 1: Backend
 pnpm dev:backend
 
 # Terminal 2: Frontend
 pnpm dev:frontend
-```
-
-Or run both together:
-```bash
-pnpm dev
 ```
 
 The application will be available at:
@@ -214,6 +229,9 @@ pnpm dlx prisma studio
 ```
 
 ### Generate Prisma Client
+
+The Prisma client is automatically generated when you run `pnpm install` (via postinstall script). If you need to regenerate it manually:
+
 ```bash
 cd apps/backend
 pnpm dlx prisma generate
