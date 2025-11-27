@@ -1,8 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
-export async function seedWorkflowTemplates(adminUserId: string) {
+export async function seedWorkflowTemplates(prisma: PrismaClient, adminUserId: string) {
   return prisma.$transaction(async (tx) => {
     const existingTemplates = await tx.workflow.findMany({
       where: {

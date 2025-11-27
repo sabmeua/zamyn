@@ -53,7 +53,7 @@ async function main() {
 
     console.log('');
     console.log('📋 Creating workflow templates...');
-    const templates = await seedWorkflowTemplates(adminUser.id);
+    const templates =    await seedWorkflowTemplates(prisma, adminUser.id);
     console.log(`✅ Created ${Object.keys(templates).length} workflow templates`);
 
     console.log('');
